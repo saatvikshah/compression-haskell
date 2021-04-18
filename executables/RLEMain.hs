@@ -2,7 +2,6 @@ module Main where
 
 import FileIO
 import RLECore
-import System.Environment (getArgs)
 import Options.Applicative
 import Data.Semigroup ((<>))
 import Data.List.Extra
