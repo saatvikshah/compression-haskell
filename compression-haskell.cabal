@@ -31,7 +31,8 @@ executable rle-compressor
   import: common-options
   hs-source-dirs: executables
   main-is:        RLEMain.hs
-  build-depends: compression-haskell
+  build-depends: optparse-applicative >= 0.16.0.0,
+                 compression-haskell
   -- other-modules:  FileIO,
   --                 RLECore
 
