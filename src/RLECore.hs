@@ -1,26 +1,28 @@
-module RLECore where
+module RLECore (runLengthEncode, runLengthDecode) where
 
-import Data.Char
+import Data.Char (isNumber)
+
+data Encoding = Encoding Char Int
 
 runLengthEncode :: String -> String
-runLengthEncode text = go '\0' 0 [] text
+runLengthEncode = encodeRunLengths.createRunLengths
     where
-        go :: Char -> Int -> String -> String -> String
-        go ch ch_count result [] = case ch_count of
-            0 -> result
-            _ -> result ++ [ch] ++ show ch_count
-        go ch ch_count result (x:xs)
-            | x == ch       = go ch (ch_count+1) result xs
-            | ch_count == 0 = go x 1 result xs
-            | otherwise     = go x 1 (result ++ [ch] ++ show ch_count) xs
+        createRunLengths :: String -> [Encoding]
+        createRunLengths [] = []
+        createRunLengths lst@(x:_) = Encoding x (length match) : createRunLengths remaining
+            where
+                (match, remaining) = span (==x) lst
+        encodeRunLengths :: [Encoding] -> String
+        encodeRunLengths = concatMap (\(Encoding ch ch_count) -> ch : show ch_count)
 
 runLengthDecode :: String -> String
-runLengthDecode cx = go '\0' 0 cx []
+runLengthDecode = decodeAllEncodings.strToEncodings
     where
-        go :: Char -> Int -> String -> String -> String
-        go ch ch_count [] result = case ch_count of
-            0 -> result
-            _ -> result ++ replicate ch_count ch
-        go ch ch_count (x:xs) result
-            | isNumber x = go ch (ch_count * 10 + digitToInt x) xs result
-            | otherwise = go x 0 xs (result ++ replicate ch_count ch)
+        strToEncodings :: String -> [Encoding]
+        strToEncodings [] = []
+        strToEncodings (ch:xs) = Encoding ch ch_count: strToEncodings remaining
+            where
+                ch_count = read ch_count_lst :: Int
+                (ch_count_lst, remaining) = span isNumber xs
+        decodeAllEncodings :: [Encoding] -> String
+        decodeAllEncodings = concatMap (\(Encoding ch ch_count) -> replicate ch_count ch)
