@@ -1,17 +1,15 @@
 module RLECore (runLengthEncode, runLengthDecode) where
 
 import Data.Char (isNumber)
+import Data.List (group)
 
 data Encoding = Encoding Char Int
 
 runLengthEncode :: String -> String
-runLengthEncode = encodeRunLengths.createRunLengths
+runLengthEncode = encodeRunLengths.encodeRunLengthGroups.group
     where
-        createRunLengths :: String -> [Encoding]
-        createRunLengths [] = []
-        createRunLengths lst@(x:_) = Encoding x (length match) : createRunLengths remaining
-            where
-                (match, remaining) = span (==x) lst
+        encodeRunLengthGroups :: [String] -> [Encoding]
+        encodeRunLengthGroups = map (\g -> Encoding (head g) (length g))
         encodeRunLengths :: [Encoding] -> String
         encodeRunLengths = concatMap (\(Encoding ch ch_count) -> ch : show ch_count)
 
