@@ -1,26 +1,39 @@
 module RLECore (runLengthEncode, runLengthDecode) where
 
-import Data.Char (isNumber)
+import Data.Char (chr, ord)
 import Data.List (group)
 
-data Encoding = Encoding Char Int
+data RunLength = RunLength Char Int
+
+charMax :: Int
+charMax = 256
 
 runLengthEncode :: String -> String
-runLengthEncode = encodeRunLengths.encodeRunLengthGroups.group
+runLengthEncode = encodeRunLengths.createRunLengths.group
     where
-        encodeRunLengthGroups :: [String] -> [Encoding]
-        encodeRunLengthGroups = map (\g -> Encoding (head g) (length g))
-        encodeRunLengths :: [Encoding] -> String
-        encodeRunLengths = concatMap (\(Encoding ch ch_count) -> ch : show ch_count)
+        createRunLengths :: [String] -> [RunLength]
+        createRunLengths = concatMap createRunLengthGroup
+            where
+            createRunLengthGroup :: String -> [RunLength]
+            createRunLengthGroup xs
+                | xs_len <= maxRunLength = [RunLength ch xs_len]
+                | otherwise              = (RunLength ch maxRunLength): createRunLengthGroup xs_rem
+                    where
+                        ch = head xs
+                        xs_len = length xs
+                        xs_rem = drop maxRunLength xs
+                        maxRunLength :: Int
+                        maxRunLength = charMax - 1
+        encodeRunLengths :: [RunLength] -> String
+        encodeRunLengths = concatMap (\(RunLength ch ch_count) -> [ch, chr ch_count])
 
 runLengthDecode :: String -> String
-runLengthDecode = decodeAllEncodings.strToEncodings
+runLengthDecode = runLengthToString.inputToRunLengths
     where
-        strToEncodings :: String -> [Encoding]
-        strToEncodings [] = []
-        strToEncodings (ch:xs) = Encoding ch ch_count: strToEncodings remaining
+        inputToRunLengths :: String -> [RunLength]
+        inputToRunLengths [] = []
+        inputToRunLengths (ch:encoded_ch_count:xs) = RunLength ch ch_count: inputToRunLengths xs
             where
-                ch_count = read ch_count_lst :: Int
-                (ch_count_lst, remaining) = span isNumber xs
-        decodeAllEncodings :: [Encoding] -> String
-        decodeAllEncodings = concatMap (\(Encoding ch ch_count) -> replicate ch_count ch)
+                ch_count = ord encoded_ch_count
+        runLengthToString :: [RunLength] -> String
+        runLengthToString = concatMap (\(RunLength ch ch_count) -> replicate ch_count ch)

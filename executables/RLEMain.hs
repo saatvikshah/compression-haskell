@@ -3,7 +3,6 @@ module Main where
 import FileIO
 import RLECore
 import Options.Applicative
-import Data.Semigroup ((<>))
 import Data.List.Extra
 
 data Args = Args
