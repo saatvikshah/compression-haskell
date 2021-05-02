@@ -1,39 +1,55 @@
+{-# LANGUAGE ViewPatterns, PatternSynonyms #-}
+
 module RLECore (runLengthEncode, runLengthDecode) where
 
 import Data.Char (chr, ord)
-import Data.List (group)
+import Data.ByteString.Char8 as C8 (pack)
+
+import qualified Data.ByteString as B
+import qualified Data.ByteString.Internal as BS (w2c)
+import qualified Data.Text as T
+import qualified Data.Vector as V
 
 data RunLength = RunLength Char Int
+
+-- https://stackoverflow.com/a/23833864/3656081
+infixr 5 :<
+
+pattern b :< bs <- (B.uncons -> Just (b, bs))
+pattern Empty   <- (B.uncons -> Nothing)
 
 charMax :: Int
 charMax = 256
 
-runLengthEncode :: String -> String
-runLengthEncode = encodeRunLengths.createRunLengths.group
+runLengthEncode :: T.Text -> B.ByteString 
+runLengthEncode = C8.pack.V.toList.encodeRunLengths.createRunLengths.V.fromList.T.group
     where
-        createRunLengths :: [String] -> [RunLength]
-        createRunLengths = concatMap createRunLengthGroup
+        createRunLengths :: V.Vector T.Text -> V.Vector RunLength
+        createRunLengths = V.concatMap createRunLengthGroup
             where
-            createRunLengthGroup :: String -> [RunLength]
+            createRunLengthGroup :: T.Text -> V.Vector RunLength
             createRunLengthGroup xs
-                | xs_len <= maxRunLength = [RunLength ch xs_len]
-                | otherwise              = (RunLength ch maxRunLength): createRunLengthGroup xs_rem
+                | xsLen <= maxRunLength = V.singleton $ RunLength ch xsLen
+                | otherwise              = RunLength ch maxRunLength `V.cons` createRunLengthGroup xsRem
                     where
-                        ch = head xs
-                        xs_len = length xs
-                        xs_rem = drop maxRunLength xs
+                        ch = T.head xs
+                        xsLen = T.length xs
+                        xsRem = T.drop maxRunLength xs
                         maxRunLength :: Int
                         maxRunLength = charMax - 1
-        encodeRunLengths :: [RunLength] -> String
-        encodeRunLengths = concatMap (\(RunLength ch ch_count) -> [ch, chr ch_count])
+        encodeRunLengths :: V.Vector RunLength -> V.Vector Char
+        encodeRunLengths = V.concatMap (\(RunLength ch ch_count) -> V.fromList [ch, chr ch_count])
 
-runLengthDecode :: String -> String
-runLengthDecode = runLengthToString.inputToRunLengths
+runLengthDecode :: B.ByteString -> Maybe T.Text
+runLengthDecode xs = vectorToText.runLengthToString <$> inputToRunLengths xs
     where
-        inputToRunLengths :: String -> [RunLength]
-        inputToRunLengths [] = []
-        inputToRunLengths (ch:encoded_ch_count:xs) = RunLength ch ch_count: inputToRunLengths xs
+        inputToRunLengths :: B.ByteString -> Maybe (V.Vector RunLength)
+        inputToRunLengths Empty  = Just V.empty
+        inputToRunLengths (ch :< encodedCharCount :< xsRem) = V.cons <$> Just (RunLength (BS.w2c ch) charCount) <*> inputToRunLengths xsRem
             where
-                ch_count = ord encoded_ch_count
-        runLengthToString :: [RunLength] -> String
-        runLengthToString = concatMap (\(RunLength ch ch_count) -> replicate ch_count ch)
+                charCount = (ord.BS.w2c) encodedCharCount
+        inputToRunLengths _ = Nothing
+        runLengthToString :: V.Vector RunLength -> V.Vector Char
+        runLengthToString = V.concatMap (\(RunLength ch charCount) -> V.replicate charCount ch)
+        vectorToText :: V.Vector Char -> T.Text
+        vectorToText = T.pack.V.toList
