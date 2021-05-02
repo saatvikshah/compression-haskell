@@ -1,9 +1,10 @@
 module Main where
 
-import FileIO
 import RLECore
 import Options.Applicative
 import Data.List.Extra
+import qualified Data.Text.IO as TIO
+import qualified Data.ByteString as B
 
 data Args = Args
     {   argsCompress   :: Maybe String,
@@ -23,17 +24,19 @@ parseArgs = Args
 
 processArgs :: Args -> IO ()
 processArgs (Args (Just file_arg) Nothing) = do
-    file_contents <- readFileContents file_arg
+    file_contents <- TIO.readFile file_arg
     let compressed_content = runLengthEncode file_contents
     let compressed_fname = file_arg ++ ".compressed"
-    writeContentToFile compressed_fname compressed_content
+    B.writeFile compressed_fname compressed_content
 processArgs (Args Nothing (Just file_arg)) = do    
     let decompressed_fname = case stripSuffix ".compressed" file_arg of
             Just x  -> x
             Nothing -> error "Invalid input filename - should be suffixed with .compressed"
-    file_contents <- readFileContents file_arg
-    let decompressed_content = runLengthDecode file_contents
-    writeContentToFile decompressed_fname decompressed_content
+    file_contents <- B.readFile file_arg
+    let decompressed_content = case runLengthDecode file_contents of
+            Just x  -> x
+            Nothing -> error "Corrupt input file"
+    TIO.writeFile decompressed_fname decompressed_content
 processArgs _ = return ()
 
 main :: IO ()
